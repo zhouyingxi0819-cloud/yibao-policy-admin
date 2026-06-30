@@ -513,11 +513,14 @@ const usedCities = new Set(["北京市","上海市","广州市"]);
 // 当前已选
 const selected = new Set();
 
-/* ===== 政策结构（按需求固定） ===== */
+/* ===== 政策结构（按需求固定） =====
+   features：该板块每条政策展示哪些折叠区
+   - 医疗救助 / 基本医疗及大病医疗：全部不展示
+   - 商业健康险：仅展示外部链接 */
 const BOARDS = [
-  { name: "医疗救助", policies: ["住院报销政策", "门诊/双通道报销政策"] },
-  { name: "基本医疗及大病医疗", policies: ["住院报销政策", "门诊/双通道报销政策"] },
-  { name: "商业健康险", policies: ["商保简介", "参保对象示例", "联系电话"] }
+  { name: "医疗救助", policies: ["住院报销政策", "门诊/双通道报销政策"], features: { attachment: false, link: false, other: false } },
+  { name: "基本医疗及大病医疗", policies: ["住院报销政策", "门诊/双通道报销政策"], features: { attachment: false, link: false, other: false } },
+  { name: "商业健康险", policies: ["商保简介", "参保对象示例", "联系电话"], features: { attachment: false, link: true, other: false } }
 ];
 
 /* ========================= 渲染城市树 ========================= */
@@ -715,8 +718,13 @@ function otherBody() {
 
 let policyUid = 0; // 全局自增，保证每条政策的 radio name 唯一
 
-function policyHtml(title) {
+function policyHtml(title, features) {
+  const f = features || { attachment: false, link: false, other: false };
   const id = `p${policyUid++}`;
+  const collapses =
+    (f.attachment ? buildCollapse('附件管理', attachmentBody()) : '') +
+    (f.link ? buildCollapse('外部链接', linkBody()) : '') +
+    (f.other ? buildCollapse('其他设置', otherBody().replaceAll('{ID}', id)) : '');
   return `
         <div class="policy">
           <div class="policy-head" onclick="togglePolicy(this)">
@@ -740,9 +748,7 @@ function policyHtml(title) {
                 <div class="rt-editor" contenteditable="true" data-ph="请输入「${title}」的详情内容..."></div>
               </div>
             </div>
-            ${buildCollapse('附件管理', attachmentBody())}
-            ${buildCollapse('外部链接', linkBody())}
-            ${buildCollapse('其他设置', otherBody().replaceAll('{ID}', id))}
+            ${collapses}
           </div>
         </div>`;
 }
@@ -751,9 +757,9 @@ function renderBoards() {
   const area = document.getElementById('policyArea');
   area.innerHTML = "";
   BOARDS.forEach((board, bi) => {
-    const policiesHtml = board.policies.map(p => policyHtml(p)).join("");
+    const policiesHtml = board.policies.map(p => policyHtml(p, board.features)).join("");
     area.innerHTML += `
-      <div class="board">
+      <div class="board" data-features='${JSON.stringify(board.features)}'>
         <div class="board-head"><span class="b-idx">${bi + 1}</span>${board.name}</div>
         <div class="board-body">
           <div class="policy-list">${policiesHtml}</div>
@@ -766,7 +772,9 @@ function renderBoards() {
 /* 在某个板块下新增一条空白政策 */
 function addPolicy(btn) {
   const list = btn.previousElementSibling; // .policy-list
-  list.insertAdjacentHTML('beforeend', policyHtml(""));
+  const board = btn.closest('.board');
+  const features = JSON.parse(board.dataset.features || '{}');
+  list.insertAdjacentHTML('beforeend', policyHtml("", features));
   // 滚动到新加的政策并聚焦标题
   const newPolicy = list.lastElementChild;
   newPolicy.scrollIntoView({ behavior: 'smooth', block: 'center' });
