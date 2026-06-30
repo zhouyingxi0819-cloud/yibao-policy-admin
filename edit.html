@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>配置医保报销政策</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #f0f2f5;
+    color: #303133;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ===== 弹窗外框 ===== */
+  .dialog {
+    background: #fff;
+    min-height: 100vh;
+  }
+  .dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid #ebeef5;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 50;
+  }
+  .dialog-title { font-size: 16px; font-weight: 600; color: #303133; }
+  .dialog-header-icons { display: flex; gap: 16px; color: #909399; }
+  .dialog-header-icons span { cursor: pointer; font-size: 18px; }
+  .dialog-body { padding: 8px 24px 100px; }
+
+  /* ===== 区块标题 ===== */
+  .section-title {
+    color: #409eff;
+    font-size: 15px;
+    font-weight: 600;
+    padding: 20px 0 10px;
+    border-bottom: 1px solid #ebeef5;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title .badge {
+    background: #ecf5ff;
+    color: #409eff;
+    font-size: 12px;
+    font-weight: 400;
+    padding: 2px 8px;
+    border-radius: 10px;
+  }
+
+  /* ===== 步骤条 ===== */
+  .steps {
+    display: flex;
+    align-items: center;
+    padding: 18px 0 6px;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    color: #c0c4cc;
+    font-weight: 600;
+  }
+  .step .num {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: #e4e7ed;
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    margin-right: 8px;
+  }
+  .step.active { color: #409eff; }
+  .step.active .num { background: #409eff; }
+  .step.done .num { background: #67c23a; }
+  .step.done { color: #67c23a; }
+  .step-line { flex: 1; height: 2px; background: #e4e7ed; margin: 0 16px; }
+
+  /* ===== 表单基础 ===== */
+  .form-row {
+    display: flex;
+    align-items: flex-start;
+    margin-bottom: 18px;
+  }
+  .form-label {
+    width: 110px;
+    text-align: right;
+    padding-right: 14px;
+    padding-top: 8px;
+    color: #606266;
+    flex-shrink: 0;
+  }
+  .form-label .req { color: #f56c6c; margin-right: 2px; }
+  .form-control { flex: 1; }
+  input[type=text], select, textarea {
+    width: 100%;
+    border: 1px solid #dcdfe6;
+    border-radius: 4px;
+    padding: 9px 12px;
+    font-size: 14px;
+    color: #303133;
+    outline: none;
+    transition: border-color .2s;
+    font-family: inherit;
+  }
+  input[type=text]:focus, select:focus, textarea:focus { border-color: #409eff; }
+  textarea { resize: vertical; min-height: 70px; }
+
+  /* ===== 城市选择 ===== */
+  .city-wrap { display: flex; gap: 16px; }
+  .city-col {
+    flex: 1;
+    border: 1px solid #ebeef5;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .city-col-head {
+    background: #f5f7fa;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: #303133;
+    border-bottom: 1px solid #ebeef5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .city-search { padding: 10px; border-bottom: 1px solid #ebeef5; }
+  .city-search input { background: #f5f7fa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23909399' viewBox='0 0 16 16'%3E%3Cpath d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0'/%3E%3C/svg%3E") no-repeat 12px center; padding-left: 34px; }
+  .city-tree, .city-selected-list {
+    height: 360px;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .tree-node { user-select: none; }
+  .tree-province > .tree-row { font-weight: 600; }
+  .tree-row {
+    display: flex;
+    align-items: center;
+    padding: 5px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .tree-row:hover { background: #f5f7fa; }
+  .tree-toggle {
+    width: 16px; text-align: center; color: #909399;
+    font-size: 11px; cursor: pointer; flex-shrink: 0;
+  }
+  .tree-row input[type=checkbox] { margin: 0 8px; cursor: pointer; }
+  .tree-count {
+    margin-left: 6px;
+    background: #409eff;
+    color: #fff;
+    font-size: 11px;
+    border-radius: 9px;
+    padding: 0 7px;
+    line-height: 17px;
+    font-weight: 400;
+  }
+  .tree-children { padding-left: 24px; }
+  .tree-row.disabled { color: #c0c4cc; cursor: not-allowed; }
+  .tree-row.disabled:hover { background: transparent; }
+  .tree-row.disabled input { cursor: not-allowed; }
+  .tag-used {
+    margin-left: auto;
+    font-size: 11px;
+    color: #e6a23c;
+    background: #fdf6ec;
+    border: 1px solid #f5dab1;
+    padding: 0 6px;
+    border-radius: 3px;
+  }
+
+  .city-selected-empty {
+    text-align: center;
+    color: #909399;
+    padding-top: 90px;
+  }
+  .city-selected-empty .ico { font-size: 40px; }
+  /* ===== 已选城市：按省份分组 ===== */
+  .sel-group { margin-bottom: 12px; border: 1px solid #ebeef5; border-radius: 6px; overflow: hidden; }
+  .sel-group-head {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #ecf5ff;
+    color: #409eff;
+    font-weight: 600;
+    padding: 9px 14px;
+    font-size: 13px;
+  }
+  .sel-group-head .prov-name { display: inline-flex; align-items: center; gap: 4px; }
+  .sel-group-head .grp-count {
+    background: #409eff; color: #fff;
+    border-radius: 9px; padding: 0 8px; line-height: 18px;
+    font-size: 11px; font-weight: 400;
+  }
+  .sel-city {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px;
+    border-top: 1px solid #f0f2f5;
+    color: #303133;
+    background: #fff;
+  }
+  .sel-city:hover { background: #f9fbff; }
+  .sel-city .x {
+    cursor: pointer; color: #c0c4cc; font-weight: 700;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .sel-city .x:hover { background: #fef0f0; color: #f56c6c; }
+  .city-foot {
+    background: #f5f7fa;
+    text-align: center;
+    padding: 8px;
+    border-top: 1px solid #ebeef5;
+  }
+  .city-foot .pill {
+    background: #67c23a; color: #fff;
+    font-size: 12px; padding: 3px 12px; border-radius: 12px;
+  }
+  .btn-clear {
+    background: #fef0f0; color: #f56c6c;
+    border: 1px solid #fbc4c4;
+    border-radius: 4px; padding: 3px 10px;
+    cursor: pointer; font-size: 12px;
+  }
+  .city-hint { color: #909399; font-size: 12px; margin-top: 8px; }
+
+  /* ===== 板块/政策卡片 ===== */
+  .board {
+    border: 1px solid #ebeef5;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .board-head {
+    background: linear-gradient(90deg, #ecf5ff, #f5faff);
+    padding: 12px 18px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #303133;
+    border-left: 4px solid #409eff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .board-head .b-idx {
+    background: #409eff; color: #fff;
+    width: 22px; height: 22px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .board-body { padding: 6px 18px 14px; }
+
+  .policy {
+    border: 1px solid #f0f0f0;
+    border-radius: 6px;
+    margin: 14px 0;
+  }
+  .policy-head {
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fafbfc;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+  }
+  .policy-head .p-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #409eff;
+  }
+  .policy-title { font-weight: 600; color: #303133; flex: 1; }
+  .policy-title-input {
+    flex: 1;
+    font-weight: 600;
+    color: #303133;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: 4px;
+    padding: 6px 10px;
+    font-size: 14px;
+    transition: border-color .2s, background .2s;
+  }
+  .policy-title-input:hover { border-color: #dcdfe6; background: #fff; }
+  .policy-title-input:focus { border-color: #409eff; background: #fff; outline: none; }
+  .policy-toggle { color: #909399; font-size: 13px; }
+  .policy-body { padding: 16px; }
+  .policy-field { margin-bottom: 16px; }
+  .policy-field-label { display: block; color: #606266; margin-bottom: 6px; font-size: 13px; }
+  .policy-summary { width: 100%; min-height: 56px; }
+
+  /* ===== 富文本占位（简易工具条 + 可编辑区） ===== */
+  .rt { border: 1px solid #dcdfe6; border-radius: 4px; overflow: hidden; }
+  .rt-toolbar {
+    display: flex; flex-wrap: wrap; gap: 2px;
+    background: #f7f8fa;
+    border-bottom: 1px solid #e4e7ed;
+    padding: 5px 6px;
+  }
+  .rt-toolbar button {
+    border: none; background: transparent;
+    width: 28px; height: 26px; border-radius: 3px;
+    cursor: pointer; color: #606266; font-size: 13px;
+  }
+  .rt-toolbar button:hover { background: #e9ebef; }
+  .rt-sep { width: 1px; background: #dcdfe6; margin: 3px 4px; }
+  .rt-editor {
+    min-height: 150px;
+    padding: 12px 14px;
+    outline: none;
+    font-size: 14px;
+  }
+  .rt-editor:empty:before {
+    content: attr(data-ph);
+    color: #c0c4cc;
+  }
+
+  /* ===== 折叠面板 ===== */
+  .collapse { border-top: 1px dashed #ebeef5; margin-top: 14px; }
+  .collapse-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 2px;
+    cursor: pointer;
+    color: #606266;
+    font-weight: 500;
+    user-select: none;
+  }
+  .collapse-head .arrow { transition: transform .2s; color: #909399; font-size: 12px; }
+  .collapse.open .collapse-head .arrow { transform: rotate(90deg); }
+  .collapse-head .c-ico { color: #409eff; }
+  .collapse-body { display: none; padding: 4px 2px 14px; }
+  .collapse.open .collapse-body { display: block; }
+
+  .upload-box {
+    border: 1px dashed #dcdfe6;
+    border-radius: 6px;
+    padding: 22px;
+    text-align: center;
+    color: #909399;
+    cursor: pointer;
+  }
+  .upload-box:hover { border-color: #409eff; color: #409eff; }
+  .upload-tip { color: #909399; font-size: 12px; margin-top: 6px; }
+
+  .mini-row { display: flex; gap: 16px; flex-wrap: wrap; }
+  .mini-field { flex: 1; min-width: 220px; }
+  .mini-field label { display: block; color: #606266; margin-bottom: 6px; font-size: 13px; }
+  .radio-line { display: flex; align-items: center; gap: 18px; padding-top: 8px; }
+  .radio-line label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+
+  /* ===== 底部操作栏 ===== */
+  .footer-bar {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-top: 1px solid #ebeef5;
+    padding: 12px 24px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    box-shadow: 0 -2px 8px rgba(0,0,0,.04);
+    z-index: 60;
+  }
+  .btn {
+    padding: 9px 22px;
+    border-radius: 4px;
+    border: 1px solid #dcdfe6;
+    background: #fff;
+    color: #606266;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .btn:hover { color: #409eff; border-color: #c6e2ff; }
+  .btn-primary { background: #409eff; border-color: #409eff; color: #fff; }
+  .btn-primary:hover { background: #66b1ff; color: #fff; }
+
+  .locked-note {
+    background: #fdf6ec;
+    border: 1px solid #faecd8;
+    color: #e6a23c;
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    display: none;
+  }
+  .block-disabled { opacity: .45; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="dialog">
+  <!-- 头部 -->
+  <div class="dialog-header">
+    <div class="dialog-title">配置医保报销政策</div>
+    <div class="dialog-header-icons">
+      <span title="最大化">▢</span>
+      <span title="关闭" onclick="location.href='index.html'">×</span>
+    </div>
+  </div>
+
+  <div class="dialog-body">
+    <!-- 步骤指引 -->
+    <div class="steps">
+      <div class="step active" id="step1"><span class="num">1</span>选择适用城市</div>
+      <div class="step-line"></div>
+      <div class="step" id="step2"><span class="num">2</span>配置政策内容</div>
+    </div>
+
+    <!-- ========== 第一步：适用城市 ========== -->
+    <div class="section-title">适用城市 <span class="badge">先选城市，再配置内容</span></div>
+    <div class="form-row">
+      <div class="form-label"><span class="req">*</span>适用范围：</div>
+      <div class="form-control">
+        <div class="city-wrap">
+          <!-- 左：城市树 -->
+          <div class="city-col">
+            <div class="city-col-head">省份 / 城市</div>
+            <div class="city-search">
+              <input type="text" id="citySearch" placeholder="搜索省份或城市...">
+            </div>
+            <div class="city-tree" id="cityTree"></div>
+          </div>
+          <!-- 右：已选 -->
+          <div class="city-col">
+            <div class="city-col-head">
+              <span>已选城市（<span id="selCount">0</span>）</span>
+              <button class="btn-clear" onclick="clearAll()">清空全部</button>
+            </div>
+            <div class="city-selected-list" id="selectedList">
+              <div class="city-selected-empty" id="emptySel">
+                <div>暂未选择城市</div>
+                <div style="font-size:12px;margin-top:4px;">请从左侧树形勾选</div>
+              </div>
+            </div>
+            <div class="city-foot"><span class="pill" id="footPill">已选 0 个城市</span></div>
+          </div>
+        </div>
+        <div class="city-hint">ⓘ 勾选城市自动添加到右侧；<b>已被其它政策配置过的城市将不可再选</b>，避免重复配置。不选则表示全国通用。</div>
+      </div>
+    </div>
+
+    <!-- ========== 第二步：政策内容 ========== -->
+    <div class="section-title" style="margin-top:30px;">政策内容配置</div>
+
+    <div class="locked-note" id="lockedNote">请先在上方选择至少一个适用城市后再配置政策内容。</div>
+
+    <div id="policyArea">
+      <!-- 板块由 JS 渲染 -->
+    </div>
+  </div>
+
+  <!-- 底部按钮 -->
+  <div class="footer-bar">
+    <button class="btn" onclick="location.href='index.html'">取消</button>
+    <button class="btn btn-primary" onclick="alert('已保存（示例）');location.href='index.html'">提交保存</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   数据：省份 / 城市（节选示例，可按需补全）
+   usedCities：模拟“已被其它政策配置过”的城市，不可选
+   ========================================================= */
+const PROVINCES = [
+  { name: "北京市", cities: ["北京市"] },
+  { name: "天津市", cities: ["天津市"] },
+  { name: "河北省", cities: ["石家庄市","唐山市","秦皇岛市","邯郸市","邢台市","保定市","张家口市","承德市","沧州市","廊坊市","衡水市","辛集市","定州市"] },
+  { name: "山西省", cities: ["太原市","大同市","阳泉市","长治市","晋城市","朔州市","晋中市","运城市","忻州市","临汾市","吕梁市"] },
+  { name: "内蒙古自治区", cities: ["呼和浩特市","包头市","乌海市","赤峰市","通辽市","鄂尔多斯市","呼伦贝尔市","巴彦淖尔市","乌兰察布市","兴安盟","锡林郭勒盟","阿拉善盟"] },
+  { name: "辽宁省", cities: ["沈阳市","大连市","鞍山市","抚顺市","本溪市","丹东市","锦州市","营口市","阜新市","辽阳市","盘锦市","铁岭市","朝阳市","葫芦岛市"] },
+  { name: "上海市", cities: ["上海市"] },
+  { name: "江苏省", cities: ["南京市","无锡市","徐州市","常州市","苏州市","南通市","连云港市","淮安市","盐城市","扬州市","镇江市","泰州市","宿迁市"] },
+  { name: "浙江省", cities: ["杭州市","宁波市","温州市","嘉兴市","湖州市","绍兴市","金华市","衢州市","舟山市","台州市","丽水市"] },
+  { name: "广东省", cities: ["广州市","深圳市","珠海市","汕头市","佛山市","韶关市","湛江市","肇庆市","江门市","茂名市","惠州市","梅州市","汕尾市","河源市","阳江市","清远市","东莞市","中山市","潮州市","揭阳市","云浮市"] }
+];
+
+// 模拟：已被其它政策配置过的城市（不可再选）
+const usedCities = new Set(["北京市","上海市","广州市"]);
+
+// 当前已选
+const selected = new Set();
+
+/* ===== 政策结构（按需求固定） ===== */
+const BOARDS = [
+  { name: "医疗救助", policies: ["住院报销政策", "门诊/双通道报销政策"] },
+  { name: "基本医疗及大病医疗", policies: ["住院报销政策", "门诊/双通道报销政策"] },
+  { name: "商业健康险", policies: ["商保简介", "参保对象示例", "联系电话"] }
+];
+
+/* ========================= 渲染城市树 ========================= */
+const treeEl = document.getElementById('cityTree');
+
+function renderTree(filter = "") {
+  treeEl.innerHTML = "";
+  PROVINCES.forEach((prov, pi) => {
+    const matchCities = prov.cities.filter(c =>
+      !filter || c.includes(filter) || prov.name.includes(filter));
+    if (filter && matchCities.length === 0) return;
+
+    const node = document.createElement('div');
+    node.className = 'tree-node tree-province';
+
+    // 省份行
+    const provRow = document.createElement('div');
+    provRow.className = 'tree-row';
+    provRow.innerHTML = `
+      <span class="tree-toggle" data-toggle="${pi}">▼</span>
+      <input type="checkbox" data-prov="${pi}">
+      ${prov.name}
+      <span class="tree-count">${prov.cities.length}</span>`;
+    node.appendChild(provRow);
+
+    // 城市容器
+    const childWrap = document.createElement('div');
+    childWrap.className = 'tree-children';
+    childWrap.dataset.children = pi;
+
+    matchCities.forEach(city => {
+      const used = usedCities.has(city);
+      const checked = selected.has(city);
+      const row = document.createElement('div');
+      row.className = 'tree-row' + (used ? ' disabled' : '');
+      row.innerHTML = `
+        <span class="tree-toggle"></span>
+        <input type="checkbox" data-city="${city}" ${checked ? 'checked' : ''} ${used ? 'disabled' : ''}>
+        ${city}
+        ${used ? '<span class="tag-used">已配置</span>' : ''}`;
+      childWrap.appendChild(row);
+    });
+    node.appendChild(childWrap);
+    treeEl.appendChild(node);
+
+    // 省份折叠
+    provRow.querySelector('[data-toggle]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const open = childWrap.style.display !== 'none';
+      childWrap.style.display = open ? 'none' : 'block';
+      e.target.textContent = open ? '▶' : '▼';
+    });
+
+    // 省份全选（仅可选城市）
+    provRow.querySelector('[data-prov]').addEventListener('change', (e) => {
+      prov.cities.forEach(c => {
+        if (usedCities.has(c)) return;
+        if (e.target.checked) selected.add(c); else selected.delete(c);
+      });
+      refreshAll(filter);
+    });
+
+    // 城市勾选
+    childWrap.querySelectorAll('[data-city]').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const c = cb.dataset.city;
+        if (cb.checked) selected.add(c); else selected.delete(c);
+        refreshAll(filter);
+      });
+    });
+  });
+}
+
+/* ========================= 已选列表 ========================= */
+function renderSelected() {
+  const list = document.getElementById('selectedList');
+  const count = selected.size;
+  document.getElementById('selCount').textContent = count;
+  document.getElementById('footPill').textContent = `已选 ${count} 个城市`;
+
+  if (count === 0) {
+    list.innerHTML = `<div class="city-selected-empty">
+        <div>暂未选择城市</div>
+        <div style="font-size:12px;margin-top:4px;">请从左侧树形勾选</div></div>`;
+  } else {
+    list.innerHTML = "";
+    // 按省份分组：遍历 PROVINCES 保持稳定顺序
+    PROVINCES.forEach(prov => {
+      const picked = prov.cities.filter(c => selected.has(c));
+      if (picked.length === 0) return;
+
+      const group = document.createElement('div');
+      group.className = 'sel-group';
+      group.innerHTML = `
+        <div class="sel-group-head">
+          <span class="prov-name">${prov.name}</span>
+          <span class="grp-count">${picked.length}个</span>
+        </div>`;
+
+      picked.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'sel-city';
+        row.innerHTML = `<span>${c}</span><span class="x" data-c="${c}">×</span>`;
+        row.querySelector('.x').addEventListener('click', () => {
+          selected.delete(c);
+          refreshAll(document.getElementById('citySearch').value.trim());
+        });
+        group.appendChild(row);
+      });
+      list.appendChild(group);
+    });
+  }
+  // 控制第二步是否可编辑
+  togglePolicyLock(count === 0);
+  // 步骤条状态
+  document.getElementById('step1').classList.toggle('done', count > 0);
+  document.getElementById('step2').classList.toggle('active', count > 0);
+}
+
+function refreshAll(filter) {
+  renderTree(filter);
+  renderSelected();
+}
+
+function clearAll() {
+  selected.clear();
+  refreshAll(document.getElementById('citySearch').value.trim());
+}
+
+document.getElementById('citySearch').addEventListener('input', (e) => {
+  renderTree(e.target.value.trim());
+});
+
+/* ========================= 政策内容锁定 ========================= */
+function togglePolicyLock(locked) {
+  document.getElementById('lockedNote').style.display = locked ? 'block' : 'none';
+  document.getElementById('policyArea').classList.toggle('block-disabled', locked);
+}
+
+/* ========================= 渲染板块 / 政策 ========================= */
+function buildRichToolbar() {
+  const btns = ['B','I','U','A','≡','•','1.','链','图','—','↶','↷'];
+  let html = '<div class="rt-toolbar">';
+  btns.forEach((b, i) => {
+    if (i === 4 || i === 7) html += '<span class="rt-sep"></span>';
+    html += `<button type="button" title="格式">${b}</button>`;
+  });
+  html += '</div>';
+  return html;
+}
+
+function buildCollapse(title, bodyHtml) {
+  return `
+  <div class="collapse">
+    <div class="collapse-head" onclick="this.parentElement.classList.toggle('open')">
+      <span class="arrow">▶</span>
+      ${title}
+    </div>
+    <div class="collapse-body">${bodyHtml}</div>
+  </div>`;
+}
+
+function attachmentBody() {
+  return `
+    <div class="upload-box">点击上传 / 拖拽文件到此<br><span class="upload-tip">支持 PDF/Word/Excel/PPT/图片，单文件最大 10MB</span></div>`;
+}
+function linkBody() {
+  return `
+    <div class="mini-row">
+      <div class="mini-field"><label>链接标题</label><input type="text" placeholder="如：官方申请入口"></div>
+      <div class="mini-field"><label>链接地址</label><input type="text" placeholder="https://example.com/policy-detail"></div>
+    </div>`;
+}
+function otherBody() {
+  return `
+    <div class="mini-row">
+      <div class="mini-field">
+        <label>是否置顶</label>
+        <div class="radio-line">
+          <label><input type="radio" name="top_{ID}" checked> 否</label>
+          <label><input type="radio" name="top_{ID}"> 是</label>
+        </div>
+      </div>
+      <div class="mini-field">
+        <label>状态</label>
+        <div class="radio-line">
+          <label><input type="radio" name="st_{ID}" checked> 正常</label>
+          <label><input type="radio" name="st_{ID}"> 停用</label>
+        </div>
+      </div>
+      <div class="mini-field"><label>排序权重</label><input type="text" value="0"></div>
+    </div>
+    <div class="mini-field" style="margin-top:12px;"><label>备注</label><textarea placeholder="选填"></textarea></div>`;
+}
+
+function renderBoards() {
+  const area = document.getElementById('policyArea');
+  area.innerHTML = "";
+  BOARDS.forEach((board, bi) => {
+    let policiesHtml = "";
+    board.policies.forEach((p, pi) => {
+      const id = `b${bi}p${pi}`;
+      policiesHtml += `
+        <div class="policy">
+          <div class="policy-head" onclick="togglePolicy(this)">
+            <span class="p-dot"></span>
+            <input type="text" class="policy-title-input" value="${p}"
+                   placeholder="请输入政策标题"
+                   onclick="event.stopPropagation()">
+            <span class="policy-toggle">展开 ▾</span>
+          </div>
+          <div class="policy-body">
+            <div class="policy-field">
+              <label class="policy-field-label">政策摘要</label>
+              <textarea class="policy-summary"></textarea>
+            </div>
+            <div class="policy-field">
+              <label class="policy-field-label">政策详情</label>
+              <div class="rt">
+                ${buildRichToolbar()}
+                <div class="rt-editor" contenteditable="true" data-ph="请输入「${p}」的详情内容..."></div>
+              </div>
+            </div>
+            ${buildCollapse('附件管理', attachmentBody())}
+            ${buildCollapse('外部链接', linkBody())}
+            ${buildCollapse('其他设置', otherBody().replaceAll('{ID}', id))}
+          </div>
+        </div>`;
+    });
+
+    area.innerHTML += `
+      <div class="board">
+        <div class="board-head"><span class="b-idx">${bi + 1}</span>${board.name}</div>
+        <div class="board-body">${policiesHtml}</div>
+      </div>`;
+  });
+}
+
+function togglePolicy(head) {
+  const body = head.nextElementSibling;
+  const open = body.style.display !== 'none';
+  // 默认展开，点击收起
+  body.style.display = open ? 'none' : 'block';
+  head.querySelector('.policy-toggle').textContent = open ? '展开 ▾' : '收起 ▴';
+}
+
+/* ========================= 初始化 ========================= */
+renderTree();
+renderSelected();
+renderBoards();
+</script>
+</body>
+</html>
