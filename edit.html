@@ -290,6 +290,31 @@
   .policy-title-input:hover { border-color: #dcdfe6; background: #fff; }
   .policy-title-input:focus { border-color: #409eff; background: #fff; outline: none; }
   .policy-toggle { color: #909399; font-size: 13px; }
+  .policy-del {
+    border: 1px solid #fbc4c4;
+    background: #fef0f0;
+    color: #f56c6c;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-left: 4px;
+  }
+  .policy-del:hover { background: #f56c6c; color: #fff; border-color: #f56c6c; }
+  .btn-add-policy {
+    display: block;
+    width: 100%;
+    margin: 8px 0 4px;
+    padding: 10px;
+    border: 1px dashed #c6e2ff;
+    background: #f5faff;
+    color: #409eff;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-add-policy:hover { border-color: #409eff; background: #ecf5ff; }
   .policy-body { padding: 16px; }
   .policy-field { margin-bottom: 16px; }
   .policy-field-label { display: block; color: #606266; margin-bottom: 6px; font-size: 13px; }
@@ -688,21 +713,20 @@ function otherBody() {
     <div class="mini-field" style="margin-top:12px;"><label>备注</label><textarea placeholder="选填"></textarea></div>`;
 }
 
-function renderBoards() {
-  const area = document.getElementById('policyArea');
-  area.innerHTML = "";
-  BOARDS.forEach((board, bi) => {
-    let policiesHtml = "";
-    board.policies.forEach((p, pi) => {
-      const id = `b${bi}p${pi}`;
-      policiesHtml += `
+let policyUid = 0; // 全局自增，保证每条政策的 radio name 唯一
+
+function policyHtml(title) {
+  const id = `p${policyUid++}`;
+  return `
         <div class="policy">
           <div class="policy-head" onclick="togglePolicy(this)">
             <span class="p-dot"></span>
-            <input type="text" class="policy-title-input" value="${p}"
+            <input type="text" class="policy-title-input" value="${title.replace(/"/g, '&quot;')}"
                    placeholder="请输入政策标题"
                    onclick="event.stopPropagation()">
             <span class="policy-toggle">展开 ▾</span>
+            <button type="button" class="policy-del" title="删除该政策"
+                    onclick="removePolicy(event, this)">删除</button>
           </div>
           <div class="policy-body">
             <div class="policy-field">
@@ -713,7 +737,7 @@ function renderBoards() {
               <label class="policy-field-label">政策详情</label>
               <div class="rt">
                 ${buildRichToolbar()}
-                <div class="rt-editor" contenteditable="true" data-ph="请输入「${p}」的详情内容..."></div>
+                <div class="rt-editor" contenteditable="true" data-ph="请输入「${title}」的详情内容..."></div>
               </div>
             </div>
             ${buildCollapse('附件管理', attachmentBody())}
@@ -721,14 +745,40 @@ function renderBoards() {
             ${buildCollapse('其他设置', otherBody().replaceAll('{ID}', id))}
           </div>
         </div>`;
-    });
+}
 
+function renderBoards() {
+  const area = document.getElementById('policyArea');
+  area.innerHTML = "";
+  BOARDS.forEach((board, bi) => {
+    const policiesHtml = board.policies.map(p => policyHtml(p)).join("");
     area.innerHTML += `
       <div class="board">
         <div class="board-head"><span class="b-idx">${bi + 1}</span>${board.name}</div>
-        <div class="board-body">${policiesHtml}</div>
+        <div class="board-body">
+          <div class="policy-list">${policiesHtml}</div>
+          <button type="button" class="btn-add-policy" onclick="addPolicy(this)">+ 新增政策</button>
+        </div>
       </div>`;
   });
+}
+
+/* 在某个板块下新增一条空白政策 */
+function addPolicy(btn) {
+  const list = btn.previousElementSibling; // .policy-list
+  list.insertAdjacentHTML('beforeend', policyHtml(""));
+  // 滚动到新加的政策并聚焦标题
+  const newPolicy = list.lastElementChild;
+  newPolicy.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  newPolicy.querySelector('.policy-title-input').focus();
+}
+
+/* 删除一条政策（含系统预置） */
+function removePolicy(e, btn) {
+  e.stopPropagation();
+  if (confirm('确定删除该政策？删除后不可恢复。')) {
+    btn.closest('.policy').remove();
+  }
 }
 
 function togglePolicy(head) {
