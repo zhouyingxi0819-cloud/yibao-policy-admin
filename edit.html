@@ -215,14 +215,31 @@
   .sel-city .x:hover { background: #fef0f0; color: #f56c6c; }
   .city-foot {
     background: #f5f7fa;
-    text-align: center;
-    padding: 8px;
+    padding: 12px 14px;
     border-top: 1px solid #ebeef5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
   .city-foot .pill {
     background: #67c23a; color: #fff;
     font-size: 12px; padding: 3px 12px; border-radius: 12px;
   }
+  /* 放大、显眼的“确定”按钮 */
+  .btn-confirm-city {
+    background: #409eff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 34px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(64,158,255,.35);
+    transition: background .2s, box-shadow .2s;
+  }
+  .btn-confirm-city:hover { background: #66b1ff; box-shadow: 0 3px 10px rgba(64,158,255,.45); }
   .btn-clear {
     background: #fef0f0; color: #f56c6c;
     border: 1px solid #fbc4c4;
@@ -230,6 +247,44 @@
     cursor: pointer; font-size: 12px;
   }
   .city-hint { color: #909399; font-size: 12px; margin-top: 8px; }
+
+  /* ===== 折叠后的已选摘要 ===== */
+  .city-confirmed {
+    border: 1px solid #ebeef5;
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .city-confirmed-head {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #f5f7fa;
+    padding: 10px 14px;
+    border-bottom: 1px solid #ebeef5;
+  }
+  .city-confirmed-title { font-weight: 600; color: #303133; }
+  .city-confirmed-count {
+    background: #409eff; color: #fff;
+    border-radius: 9px; padding: 0 8px; line-height: 18px;
+    font-size: 11px; font-weight: 400; margin-left: 4px;
+  }
+  .btn-reselect {
+    background: #ecf5ff; color: #409eff;
+    border: 1px solid #c6e2ff;
+    border-radius: 4px; padding: 4px 14px;
+    cursor: pointer; font-size: 13px;
+  }
+  .btn-reselect:hover { background: #409eff; color: #fff; }
+  .city-confirmed-body {
+    padding: 12px 14px;
+    display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .city-tag {
+    background: #ecf5ff; color: #409eff;
+    border: 1px solid #d9ecff;
+    border-radius: 4px; padding: 3px 10px;
+    font-size: 13px;
+  }
+  .city-tag .prov { color: #909399; margin-right: 4px; }
+  .city-confirmed-empty { color: #909399; font-size: 13px; }
 
   /* ===== 板块/政策卡片 ===== */
   .board {
@@ -257,10 +312,20 @@
   }
   .board-body { padding: 6px 18px 14px; }
 
+  /* 二级政策横向排列：一行三个 */
+  .policy-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 14px 0;
+  }
+  @media (max-width: 1100px) { .policy-list { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 760px)  { .policy-list { grid-template-columns: 1fr; } }
   .policy {
     border: 1px solid #f0f0f0;
     border-radius: 6px;
-    margin: 14px 0;
+    display: flex;
+    flex-direction: column;
   }
   .policy-head {
     padding: 11px 16px;
@@ -315,6 +380,20 @@
     transition: all .2s;
   }
   .btn-add-policy:hover { border-color: #409eff; background: #ecf5ff; }
+  /* 板块标题内的小号“新增政策”按钮 */
+  .btn-add-policy-sm {
+    margin-left: 14px;
+    padding: 4px 12px;
+    border: 1px solid #c6e2ff;
+    background: #fff;
+    color: #409eff;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-add-policy-sm:hover { border-color: #409eff; background: #ecf5ff; }
   .policy-body { padding: 16px; }
   .policy-field { margin-bottom: 16px; }
   .policy-field-label { display: block; color: #606266; margin-bottom: 6px; font-size: 13px; }
@@ -441,7 +520,23 @@
 
     <!-- ========== 第一步：适用城市 ========== -->
     <div class="section-title">适用城市 <span class="badge">先选城市，再配置内容</span></div>
-    <div class="form-row">
+
+    <!-- 折叠后的已选结果摘要（确定后展示） -->
+    <div class="form-row" id="cityConfirmedRow" style="display:none;">
+      <div class="form-label"><span class="req">*</span>适用范围：</div>
+      <div class="form-control">
+        <div class="city-confirmed">
+          <div class="city-confirmed-head">
+            <span class="city-confirmed-title">已选适用城市 <span class="city-confirmed-count" id="confirmedCount">0</span></span>
+            <button class="btn-reselect" onclick="reselectCity()">修改</button>
+          </div>
+          <div class="city-confirmed-body" id="confirmedTags"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 城市选择区（确定后折叠隐藏） -->
+    <div class="form-row" id="cityPickerRow">
       <div class="form-label"><span class="req">*</span>适用范围：</div>
       <div class="form-control">
         <div class="city-wrap">
@@ -465,7 +560,10 @@
                 <div style="font-size:12px;margin-top:4px;">请从左侧树形勾选</div>
               </div>
             </div>
-            <div class="city-foot"><span class="pill" id="footPill">已选 0 个城市</span></div>
+            <div class="city-foot">
+              <span class="pill" id="footPill">已选 0 个城市</span>
+              <button class="btn-confirm-city" onclick="confirmCity()">确定</button>
+            </div>
           </div>
         </div>
         <div class="city-hint">ⓘ 勾选城市自动添加到右侧；<b>已被其它政策配置过的城市将不可再选</b>，避免重复配置。不选则表示全国通用。</div>
@@ -475,7 +573,7 @@
     <!-- ========== 第二步：政策内容 ========== -->
     <div class="section-title" style="margin-top:30px;">政策内容配置</div>
 
-    <div class="locked-note" id="lockedNote">请先在上方选择至少一个适用城市后再配置政策内容。</div>
+    <div class="locked-note" id="lockedNote">请先在上方选择适用城市并点击「确定」后再配置政策内容。</div>
 
     <div id="policyArea">
       <!-- 板块由 JS 渲染 -->
@@ -512,14 +610,15 @@ const usedCities = new Set(["北京市","上海市","广州市"]);
 
 // 当前已选
 const selected = new Set();
+// 是否已点击“确定”（确定后城市区域折叠、第二步解锁）
+let cityConfirmed = false;
 
 /* ===== 政策结构（按需求固定） =====
    features：该板块每条政策展示哪些折叠区
-   - 医疗救助 / 基本医疗及大病医疗：全部不展示
-   - 商业健康险：仅展示外部链接 */
+   - 三个板块均展示外部链接，均不展示附件管理、其他设置 */
 const BOARDS = [
-  { name: "医疗救助", policies: ["住院报销政策", "门诊/双通道报销政策"], features: { attachment: false, link: false, other: false } },
-  { name: "基本医疗及大病医疗", policies: ["住院报销政策", "门诊/双通道报销政策"], features: { attachment: false, link: false, other: false } },
+  { name: "医疗救助", policies: ["住院报销政策", "门诊/双通道报销政策"], features: { attachment: false, link: true, other: false } },
+  { name: "基本医疗及大病医疗", policies: ["住院报销政策", "门诊/双通道报销政策"], features: { attachment: false, link: true, other: false } },
   { name: "商业健康险", policies: ["商保简介", "参保对象示例", "联系电话"], features: { attachment: false, link: true, other: false } }
 ];
 
@@ -633,11 +732,8 @@ function renderSelected() {
       list.appendChild(group);
     });
   }
-  // 控制第二步是否可编辑
-  togglePolicyLock(count === 0);
-  // 步骤条状态
-  document.getElementById('step1').classList.toggle('done', count > 0);
-  document.getElementById('step2').classList.toggle('active', count > 0);
+  // 第二步在“确定”之前始终锁定
+  togglePolicyLock(!cityConfirmed);
 }
 
 function refreshAll(filter) {
@@ -658,6 +754,56 @@ document.getElementById('citySearch').addEventListener('input', (e) => {
 function togglePolicyLock(locked) {
   document.getElementById('lockedNote').style.display = locked ? 'block' : 'none';
   document.getElementById('policyArea').classList.toggle('block-disabled', locked);
+}
+
+/* ========================= 确定 / 修改 城市 ========================= */
+function confirmCity() {
+  if (selected.size === 0) {
+    alert('请至少选择一个适用城市');
+    return;
+  }
+  cityConfirmed = true;
+  // 折叠选择区，展示摘要
+  document.getElementById('cityPickerRow').style.display = 'none';
+  document.getElementById('cityConfirmedRow').style.display = 'flex';
+  renderConfirmed();
+  // 步骤条推进
+  document.getElementById('step1').classList.add('done');
+  document.getElementById('step1').classList.remove('active');
+  document.getElementById('step2').classList.add('active');
+  // 解锁第二步
+  togglePolicyLock(false);
+  // 滚动到政策配置区
+  document.querySelector('#policyArea').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function reselectCity() {
+  cityConfirmed = false;
+  document.getElementById('cityConfirmedRow').style.display = 'none';
+  document.getElementById('cityPickerRow').style.display = 'flex';
+  document.getElementById('step1').classList.add('active');
+  document.getElementById('step2').classList.remove('active');
+  refreshAll(document.getElementById('citySearch').value.trim());
+}
+
+/* 渲染折叠后的已选城市摘要（按省份分组的标签） */
+function renderConfirmed() {
+  document.getElementById('confirmedCount').textContent = selected.size;
+  const box = document.getElementById('confirmedTags');
+  box.innerHTML = "";
+  if (selected.size === 0) {
+    box.innerHTML = '<span class="city-confirmed-empty">未选择城市（全国通用）</span>';
+    return;
+  }
+  PROVINCES.forEach(prov => {
+    const picked = prov.cities.filter(c => selected.has(c));
+    picked.forEach(c => {
+      const tag = document.createElement('span');
+      tag.className = 'city-tag';
+      tag.innerHTML = `<span class="prov">${prov.name}</span>${c}`;
+      box.appendChild(tag);
+    });
+  });
 }
 
 /* ========================= 渲染板块 / 政策 ========================= */
@@ -756,10 +902,12 @@ function renderBoards() {
     const policiesHtml = board.policies.map(p => policyHtml(p, board.features)).join("");
     area.innerHTML += `
       <div class="board" data-features='${JSON.stringify(board.features)}'>
-        <div class="board-head"><span class="b-idx">${bi + 1}</span>${board.name}</div>
+        <div class="board-head">
+          <span class="b-idx">${bi + 1}</span>${board.name}
+          <button type="button" class="btn-add-policy-sm" onclick="addPolicy(this)">+ 新增政策</button>
+        </div>
         <div class="board-body">
           <div class="policy-list">${policiesHtml}</div>
-          <button type="button" class="btn-add-policy" onclick="addPolicy(this)">+ 新增政策</button>
         </div>
       </div>`;
   });
@@ -767,8 +915,8 @@ function renderBoards() {
 
 /* 在某个板块下新增一条空白政策 */
 function addPolicy(btn) {
-  const list = btn.previousElementSibling; // .policy-list
   const board = btn.closest('.board');
+  const list = board.querySelector('.policy-list');
   const features = JSON.parse(board.dataset.features || '{}');
   list.insertAdjacentHTML('beforeend', policyHtml("", features));
   // 滚动到新加的政策并聚焦标题

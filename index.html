@@ -124,6 +124,17 @@
   .status.on { background: #2ba471; }
   .status.off { background: #c0c4cc; }
 
+  /* 配置状态徽标 */
+  .cfg {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    border: 1px solid transparent;
+  }
+  .cfg.done { color: #2ba471; background: #e7f6ef; border-color: #b7e4ce; }
+  .cfg.undone { color: #909399; background: #f4f4f5; border-color: #e4e7ed; }
+
   /* 操作按钮 */
   .op-btn {
     display: inline-flex;
@@ -177,6 +188,30 @@
           <option value="off">已停用</option>
         </select>
       </div>
+      <div class="filter-item">
+        <label>医疗救助：</label>
+        <select id="fMedical">
+          <option value="">全部</option>
+          <option value="1">已配置</option>
+          <option value="0">未配置</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>基本医疗&大病医疗：</label>
+        <select id="fBasic">
+          <option value="">全部</option>
+          <option value="1">已配置</option>
+          <option value="0">未配置</option>
+        </select>
+      </div>
+      <div class="filter-item">
+        <label>商业健康险：</label>
+        <select id="fCommercial">
+          <option value="">全部</option>
+          <option value="1">已配置</option>
+          <option value="0">未配置</option>
+        </select>
+      </div>
       <div class="filter-actions">
         <button class="btn btn-search" onclick="doSearch()">搜索</button>
         <button class="btn btn-reset" onclick="doReset()">重置</button>
@@ -203,8 +238,11 @@
           <tr>
             <th>关联省份</th>
             <th>关联城市</th>
+            <th class="center">医疗救助</th>
+            <th class="center">基本医疗&大病医疗</th>
+            <th class="center">商业健康险</th>
             <th class="center">状态</th>
-            <th>创建时间</th>
+            <th>最近一次修改时间</th>
             <th class="center" style="width:230px;">操作</th>
           </tr>
         </thead>
@@ -226,16 +264,19 @@ const PROVINCES = [
   { name: "广东省", cities: ["广州市","深圳市","珠海市","汕头市","佛山市"] }
 ];
 
-/* ===== 列表数据（示例） ===== */
+/* ===== 列表数据（示例） =====
+   medical  ：医疗救助          配置状态  1=已配置 0=未配置
+   basic    ：基本医疗&大病医疗 配置状态
+   commercial：商业健康险        配置状态 */
 const DATA = [
-  { provinces: ["北京市"], cities: ["北京市"], status: "on", createTime: "2026-06-29 11:16:31" },
-  { provinces: ["河北省","北京市","天津市"], cities: ["保定市","北京市","唐山市","天津市"], status: "on", createTime: "2026-05-20 09:56:41" },
-  { provinces: ["北京市"], cities: ["北京市"], status: "on", createTime: "2026-06-29 11:05:41" },
-  { provinces: ["北京市"], cities: ["北京市"], status: "on", createTime: "2026-06-29 11:15:41" },
-  { provinces: ["河北省","北京市","天津市"], cities: ["保定市","北京市","唐山市","天津市"], status: "on", createTime: "2026-05-15 15:29:03" },
-  { provinces: ["北京市"], cities: ["北京市"], status: "off", createTime: "2026-05-15 15:29:14" },
-  { provinces: ["北京市"], cities: ["北京市"], status: "on", createTime: "2026-06-29 11:03:32" },
-  { provinces: ["浙江省"], cities: ["杭州市"], status: "on", createTime: "2026-06-30 11:38:09" }
+  { provinces: ["北京市"], cities: ["北京市"], status: "on", medical: 1, basic: 1, commercial: 1, updateTime: "2026-06-29 11:16:31" },
+  { provinces: ["河北省","北京市","天津市"], cities: ["保定市","北京市","唐山市","天津市"], status: "on", medical: 1, basic: 1, commercial: 0, updateTime: "2026-05-20 09:56:41" },
+  { provinces: ["北京市"], cities: ["北京市"], status: "on", medical: 1, basic: 0, commercial: 0, updateTime: "2026-06-29 11:05:41" },
+  { provinces: ["北京市"], cities: ["北京市"], status: "on", medical: 0, basic: 1, commercial: 1, updateTime: "2026-06-29 11:15:41" },
+  { provinces: ["河北省","北京市","天津市"], cities: ["保定市","北京市","唐山市","天津市"], status: "on", medical: 1, basic: 1, commercial: 1, updateTime: "2026-05-15 15:29:03" },
+  { provinces: ["北京市"], cities: ["北京市"], status: "off", medical: 0, basic: 0, commercial: 0, updateTime: "2026-05-15 15:29:14" },
+  { provinces: ["北京市"], cities: ["北京市"], status: "on", medical: 1, basic: 0, commercial: 1, updateTime: "2026-06-29 11:03:32" },
+  { provinces: ["浙江省"], cities: ["杭州市"], status: "on", medical: 0, basic: 1, commercial: 0, updateTime: "2026-06-30 11:38:09" }
 ];
 
 /* ===== 初始化筛选下拉 ===== */
@@ -275,15 +316,28 @@ function ellipsis(arr, max = 3) {
   return arr.slice(0, max).join("、") + "、…";
 }
 
+/* 配置状态徽标：1=已配置 0=未配置 */
+function cfgBadge(v) {
+  return v
+    ? '<span class="cfg done">已配置</span>'
+    : '<span class="cfg undone">未配置</span>';
+}
+
 function renderTable() {
   const prov = document.getElementById('fProvince').value;
   const city = document.getElementById('fCity').value;
   const status = document.getElementById('fStatus').value;
+  const medical = document.getElementById('fMedical').value;
+  const basic = document.getElementById('fBasic').value;
+  const commercial = document.getElementById('fCommercial').value;
 
   const rows = DATA.filter(d =>
     (!prov || d.provinces.includes(prov)) &&
     (!city || d.cities.includes(city)) &&
-    (!status || d.status === status)
+    (!status || d.status === status) &&
+    (medical === "" || String(d.medical) === medical) &&
+    (basic === "" || String(d.basic) === basic) &&
+    (commercial === "" || String(d.commercial) === commercial)
   );
 
   const tbody = document.getElementById('tbody');
@@ -293,10 +347,13 @@ function renderTable() {
     tr.innerHTML = `
       <td class="prov-cell">${ellipsis(d.provinces)}</td>
       <td class="city-cell">${ellipsis(d.cities)}</td>
+      <td class="center">${cfgBadge(d.medical)}</td>
+      <td class="center">${cfgBadge(d.basic)}</td>
+      <td class="center">${cfgBadge(d.commercial)}</td>
       <td class="center">
         <span class="status ${d.status === 'on' ? 'on' : 'off'}">${d.status === 'on' ? '已发布' : '已停用'}</span>
       </td>
-      <td>${d.createTime}</td>
+      <td>${d.updateTime}</td>
       <td class="center">
         <button class="op-btn op-edit" onclick="goEdit()">编辑</button>
         <button class="op-btn op-toggle">${d.status === 'on' ? '下架' : '上架'}</button>
@@ -315,6 +372,9 @@ function doReset() {
   document.getElementById('fProvince').value = "";
   document.getElementById('fProvince').dispatchEvent(new Event('change'));
   document.getElementById('fStatus').value = "";
+  document.getElementById('fMedical').value = "";
+  document.getElementById('fBasic').value = "";
+  document.getElementById('fCommercial').value = "";
   renderTable();
 }
 function doExport() { alert("导出当前筛选结果（示例）"); }
